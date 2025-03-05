@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>ANT注意力网络测验（离线修正版）</title>
+  <!-- 本地加载jsPsych库 -->
+  <script src="jsPsych-7.3.3/jspsych.js"></script>
+  <script src="jsPsych-7.3.3/plugins/jspsych-html-keyboard-response.js"></script>
+  <link rel="stylesheet" href="jsPsych-7.3.3/css/jspsych.css">
+  <style>
+    body { font-family: 'Microsoft YaHei', SimSun, sans-serif; }
+  </style>
+</head>
+<body>
+<script>
+  const jsPsych = initJsPsych();
+
+  // ============== 参数设置 ==============
+  const params = {
+    trialCount: 24,
+    cueDuration: 500,
+    targetDuration: 1000,
+    feedbackDuration: 800
+  };
+
+  // ============== 生成试次 ==============
+  const trials = [];
+  for (let i = 0; i < params.trialCount; i++) {
+    trials.push({
+      cue: ['有效线索', '无效线索', '无线索'][Math.floor(Math.random() * 3)],
+      direction: ['左', '右'][Math.floor(Math.random() * 2)],
+      conflict: ['冲突', '一致'][Math.floor(Math.random() * 2)],
+      correctKey: ['左', '右'][Math.floor(Math.random() * 2)] === '左' ? 'f' : 'j'
+    });
+  }
+
+  // ============== 实验流程 ==============
+  const timeline = [];
+
+  // 指导语
+  timeline.push({
+    type: 'html-keyboard-response',
+    stimulus: `
+      <div style="font-size: 24px;">
+        <h2>实验说明</h2>
+        <p>请根据中央箭头方向按键：</p>
+        <p><kbd>F</kbd>键 = 左，<kbd>J</kbd>键 = 右</p>
+        <p>按空格键开始实验...</p>
+      </div>
+    `,
+    choices: [' ']
+  });
+
+  // 试次循环
+  trials.forEach(trial => {
+    // 1. 呈现线索
+    timeline.push({
+      type: 'html-keyboard-response',
+      stimulus: `<div style="font-size: 48px;">${getCueSymbol(trial.cue)}</div>`,
+      choices: [],
+      trial_duration: params.cueDuration
+    });
+
+    // 2. 呈现目标
+    timeline.push({
+      type: 'html-keyboard-response',
+      stimulus: createTargetStimulus(trial),
+      choices: ['f', 'j'],
+      trial_duration: params.targetDuration,
+      data: trial,
+      on_finish: (data) => {
+        data.正确性 = data.key_pressed === data.correctKey ? '正确' : '错误';
+        data.反应时 = data.rt;
+      }
+    });
+
+    // 3. 反馈
+    timeline.push({
+      type: 'html-keyboard-response',
+      stimulus: (data) => `<p style="color: ${data.正确性 === '正确' ? 'green' : 'red'};">${data.正确性}</p>`,
+      choices: [],
+      trial_duration: params.feedbackDuration
+    });
+  });
+
+  // ============== 辅助函数 ==============
+  function getCueSymbol(cue) {
+    return { '有效线索': '↑', '无效线索': '↓', '无线索': '•' }[cue];
+  }
+
+  function createTargetStimulus(trial) {
+    const center = trial.direction === '左' ? '←' : '→';
+    const flankers = trial.conflict === '冲突' 
+      ? (center === '←' ? '→ → → →' : '← ← ← ←') 
+      : `${center} ${center} ${center} ${center}`;
+    return `<div style="font-size: 64px;">${flankers}</div>`;
+  }
+
+  // ============== 启动实验 ==============
+  jsPsych.run(timeline);
+</script>
+</body>
+</html>
